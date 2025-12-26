@@ -1,118 +1,79 @@
--- Services
+-- Jayden Taylor X Github
+
+local CRATE_NAME = "BaseCrate"
+
+local SPAWN_FOLDER = workspace:WaitForChild("SpawnedItems")
+local AREA_FOLDERS = {
+    "ItemSpawnArea1_Items",
+    "ItemSpawnArea2_Items"
+}
+
 local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+if not LocalPlayer then return end
 
--- Player
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local hrp = character:WaitForChild("HumanoidRootPart")
-
--- Folders
-local spawnedItems = Workspace:WaitForChild("SpawnedItems")
-local area1 = spawnedItems:WaitForChild("ItemSpawnArea1_Items")
-local area2 = spawnedItems:WaitForChild("ItemSpawnArea2_Items")
-
--- State
-local enabled = false
-local lastCFrame = nil
-local connections = {}
-
---------------------------------------------------
--- GUI
---------------------------------------------------
-
-local gui = Instance.new("ScreenGui")
-gui.Name = "CrateWatcherGui"
-gui.ResetOnSpawn = false
-gui.Parent = player:WaitForChild("PlayerGui")
+-- UI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "TeleportToolUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 200, 0, 100)
-frame.Position = UDim2.new(0, 20, 0, 20)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-frame.Parent = gui
+frame.Size = UDim2.new(0, 200, 0, 50)
+frame.Position = UDim2.new(0.05, 0, 0.2, 0)
+frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+frame.BorderSizePixel = 2
+frame.Active = true
+frame.Draggable = true
+frame.Parent = screenGui
 
-local toggle = Instance.new("TextButton")
-toggle.Size = UDim2.new(1, -20, 0, 40)
-toggle.Position = UDim2.new(0, 10, 0, 10)
-toggle.Text = "Script: OFF"
-toggle.BackgroundColor3 = Color3.fromRGB(170, 60, 60)
-toggle.TextColor3 = Color3.new(1, 1, 1)
-toggle.Parent = frame
+local label = Instance.new("TextLabel")
+label.Size = UDim2.new(1, 0, 1, 0)
+label.BackgroundTransparency = 1
+label.Text = "Teleport Script Active"
+label.TextColor3 = Color3.fromRGB(255,255,255)
+label.Font = Enum.Font.SourceSansBold
+label.TextScaled = true
+label.Parent = frame
 
---------------------------------------------------
--- Functions
---------------------------------------------------
+-- Teleport
+local function teleportToCrate(crateModel)
+    local character = LocalPlayer.Character
+    if not character then return end
 
-local function teleportToModel(model)
-	if not enabled then return end
-	if not model:IsA("Model") then return end
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
 
-	local primary = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
-	if not primary then return end
+    local originalCFrame = root.CFrame
 
-	lastCFrame = hrp.CFrame
-	hrp.CFrame = primary.CFrame + Vector3.new(0, 3, 0)
+    local targetPart =
+        crateModel.PrimaryPart
+        or crateModel:FindFirstChildWhichIsA("BasePart")
 
-	-- return immediately
-	task.defer(function()
-		if lastCFrame and hrp then
-			hrp.CFrame = lastCFrame
-		end
-	end)
+    if targetPart then
+        root.CFrame = targetPart.CFrame + Vector3.new(0, 5, 0)
+        task.wait(2)
+        root.CFrame = originalCFrame
+    end
 end
 
-local function watchFolder(folder)
-	return folder.ChildAdded:Connect(function(child)
-		if child.Name == "BaseCrate" then
-			teleportToModel(child)
-		end
-	end)
+local function listenForCrates(folder)
+    folder.ChildAdded:Connect(function(obj)
+        if obj.Name == CRATE_NAME then
+            teleportToCrate(obj)
+        end
+    end)
+
+    for _, obj in ipairs(folder:GetChildren()) do
+        if obj.Name == CRATE_NAME then
+            teleportToCrate(obj)
+        end
+    end
+end
+-- I dont remember, dont question me.
+for _, folderName in ipairs(AREA_FOLDERS) do
+    local folder = SPAWN_FOLDER:WaitForChild(folderName)
+    listenForCrates(folder)
 end
 
-local function enableScript()
-	if enabled then return end
-	enabled = true
-
-	connections[1] = watchFolder(area1)
-	connections[2] = watchFolder(area2)
-
-	toggle.Text = "Script: ON"
-	toggle.BackgroundColor3 = Color3.fromRGB(60, 170, 60)
-end
-
-local function disableScript()
-	if not enabled then return end
-	enabled = false
-
-	for _, conn in pairs(connections) do
-		if conn then
-			conn:Disconnect()
-		end
-	end
-	connections = {}
-
-	toggle.Text = "Script: OFF"
-	toggle.BackgroundColor3 = Color3.fromRGB(170, 60, 60)
-end
-
---------------------------------------------------
--- Toggle Button
---------------------------------------------------
-
-toggle.MouseButton1Click:Connect(function()
-	if enabled then
-		disableScript()
-	else
-		enableScript()
-	end
-end)
-
---------------------------------------------------
--- Character reload safety
---------------------------------------------------
-
-player.CharacterAdded:Connect(function(char)
-	character = char
-	hrp = character:WaitForChild("HumanoidRootPart")
-end)
+print("Teleport script loaded for:", LocalPlayer.Name)
