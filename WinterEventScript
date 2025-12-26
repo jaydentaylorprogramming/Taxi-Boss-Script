@@ -1,0 +1,118 @@
+-- Services
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+
+-- Player
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+-- Folders
+local spawnedItems = Workspace:WaitForChild("SpawnedItems")
+local area1 = spawnedItems:WaitForChild("ItemSpawnArea1_Items")
+local area2 = spawnedItems:WaitForChild("ItemSpawnArea2_Items")
+
+-- State
+local enabled = false
+local lastCFrame = nil
+local connections = {}
+
+--------------------------------------------------
+-- GUI
+--------------------------------------------------
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "CrateWatcherGui"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 200, 0, 100)
+frame.Position = UDim2.new(0, 20, 0, 20)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.Parent = gui
+
+local toggle = Instance.new("TextButton")
+toggle.Size = UDim2.new(1, -20, 0, 40)
+toggle.Position = UDim2.new(0, 10, 0, 10)
+toggle.Text = "Script: OFF"
+toggle.BackgroundColor3 = Color3.fromRGB(170, 60, 60)
+toggle.TextColor3 = Color3.new(1, 1, 1)
+toggle.Parent = frame
+
+--------------------------------------------------
+-- Functions
+--------------------------------------------------
+
+local function teleportToModel(model)
+	if not enabled then return end
+	if not model:IsA("Model") then return end
+
+	local primary = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
+	if not primary then return end
+
+	lastCFrame = hrp.CFrame
+	hrp.CFrame = primary.CFrame + Vector3.new(0, 3, 0)
+
+	-- return immediately
+	task.defer(function()
+		if lastCFrame and hrp then
+			hrp.CFrame = lastCFrame
+		end
+	end)
+end
+
+local function watchFolder(folder)
+	return folder.ChildAdded:Connect(function(child)
+		if child.Name == "BaseCrate" then
+			teleportToModel(child)
+		end
+	end)
+end
+
+local function enableScript()
+	if enabled then return end
+	enabled = true
+
+	connections[1] = watchFolder(area1)
+	connections[2] = watchFolder(area2)
+
+	toggle.Text = "Script: ON"
+	toggle.BackgroundColor3 = Color3.fromRGB(60, 170, 60)
+end
+
+local function disableScript()
+	if not enabled then return end
+	enabled = false
+
+	for _, conn in pairs(connections) do
+		if conn then
+			conn:Disconnect()
+		end
+	end
+	connections = {}
+
+	toggle.Text = "Script: OFF"
+	toggle.BackgroundColor3 = Color3.fromRGB(170, 60, 60)
+end
+
+--------------------------------------------------
+-- Toggle Button
+--------------------------------------------------
+
+toggle.MouseButton1Click:Connect(function()
+	if enabled then
+		disableScript()
+	else
+		enableScript()
+	end
+end)
+
+--------------------------------------------------
+-- Character reload safety
+--------------------------------------------------
+
+player.CharacterAdded:Connect(function(char)
+	character = char
+	hrp = character:WaitForChild("HumanoidRootPart")
+end)
