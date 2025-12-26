@@ -52,7 +52,7 @@ local function teleportToCrate(crateModel)
 
     if targetPart then
         root.CFrame = targetPart.CFrame + Vector3.new(0, 5, 0)
-        task.wait(2)
+        task.wait(0.5)
         root.CFrame = originalCFrame
     end
 end
